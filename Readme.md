@@ -11,10 +11,10 @@ Popup window with item details
 
 ⚙️ Requirements
 
-pip install pandas
-pip install customtkinter
-pip install pillow
-pip install python-barcode
+  - pip install pandas
+  - pip install customtkinter
+  - pip install pillow
+  - pip install python-barcode
 
 
 🚀 Run the app
