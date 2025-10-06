@@ -1,4 +1,4 @@
-🇬🇧 English Version
+🇬🇧
 Orizon Viewer is a desktop Excel file viewer built with Python and CustomTkinter.
 It provides a clean, modern interface for loading, searching, and viewing Excel data, with barcode generation and popup details.
 
