@@ -1,7 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Build:  pyinstaller --noconfirm OrizonViewer.spec
+# Build:  build_exe.bat   (oppure: pyinstaller --noconfirm --clean OrizonViewer.spec)
 datas = [
     ('assets/Orizon-com.jpg', 'assets'),
+    ('assets/orizon.ico', 'assets'),
     ('assets/icons', 'assets/icons'),
     ('app/styles.qss', 'app'),
 ]
@@ -33,7 +34,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,   # UPX non serve e aumenta i falsi positivi degli antivirus
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
@@ -42,4 +43,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='assets/orizon.ico',
 )

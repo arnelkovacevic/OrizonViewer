@@ -13,6 +13,7 @@ import os
 import re
 import secrets
 import socket
+import sys
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -81,12 +82,17 @@ def _check(secret: str, hash_hex: str, salt_hex: str) -> bool:
 
 # ------------------------------------------------------------------ percorso
 def data_dir() -> str:
-    """Cartella dati dell'app. Su Windows e' %APPDATA%\\Orizon-AIX\\OrizonViewer (percorso fisso,
-    lo stesso che usa Ripristina_account.bat); altrove la AppDataLocation di Qt."""
-    if os.name == "nt" and os.environ.get("APPDATA"):
-        return os.path.join(os.environ["APPDATA"], DATA_SUBDIR)
-    from PySide6.QtCore import QStandardPaths
-    return QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
+    """Cartella dati dell'app (account.json, profiles.json, orizon.log). Calcolata senza Qt, cosi' esiste
+    anche prima della QApplication; coincide con la AppDataLocation di Qt (organizzazione/applicazione).
+    Windows: %APPDATA%\\Orizon-AIX\\OrizonViewer (lo stesso percorso usa Ripristina_account.bat)."""
+    home = os.path.expanduser("~")
+    if os.name == "nt":
+        base = os.environ.get("APPDATA") or os.path.join(home, "AppData", "Roaming")
+    elif sys.platform == "darwin":
+        base = os.path.join(home, "Library", "Application Support")
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or os.path.join(home, ".local", "share")
+    return os.path.join(base, DATA_SUBDIR)
 
 
 def account_path() -> str:

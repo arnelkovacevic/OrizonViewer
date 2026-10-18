@@ -1,0 +1,57 @@
+ORIZON VIEWER - LEGGIMI
+=======================
+
+Questa cartella contiene:
+  OrizonViewer.exe        il programma
+  Ripristina_account.bat  reimposta l'account (vedi sotto)
+  LEGGIMI.txt             questo file
+
+COME AVVIARE
+------------
+Fai doppio clic su OrizonViewer.exe. Non serve installare nulla.
+Il programma si apre a schermo intero.
+
+SE WINDOWS MOSTRA "WINDOWS ha protetto il PC" (SmartScreen)
+-----------------------------------------------------------
+Il programma non e' firmato digitalmente, quindi al primo avvio Windows puo' mostrare un avviso.
+Fai clic su "Ulteriori informazioni" e poi su "Esegui comunque".
+Succede solo la prima volta.
+
+PRIMO AVVIO - CREAZIONE DELL'ACCOUNT
+------------------------------------
+Al primo avvio compare "Configurazione iniziale":
+  1. scegli nome utente e password (almeno 6 caratteri);
+  2. scegli un PIN di 4-6 cifre: serve per importare file, modificare la configurazione e uscire;
+  3. premi "Crea account".
+Poi viene mostrato il CODICE DI RECUPERO (formato XXXX-XXXX-XXXX): scrivilo o salvalo su file e
+conservalo in un luogo sicuro. Serve per reimpostare password e PIN e non verra' piu' mostrato.
+Dopo 5 tentativi errati l'accesso si blocca per 30 secondi.
+
+USO
+---
+  - icona "Importa" (in alto a destra) con il PIN: scegli un file (.xlsx .xlsm .xls .xlsb .ods .csv .tsv .txt)
+    e segui la procedura guidata;
+  - cerca scrivendo nel campo in alto (usa % o spazio per piu' parole);
+  - doppio clic su una riga per vedere i dettagli e il codice a barre;
+  - icona "Esci" con il PIN per chiudere il programma.
+
+DOVE VENGONO SALVATI I DATI
+---------------------------
+  %APPDATA%\Orizon-AIX\OrizonViewer
+    account.json   l'account (solo hash, nessuna password in chiaro)
+    profiles.json  le configurazioni dei file
+    orizon.log     il registro eventi ed errori (utile per l'assistenza)
+I tuoi file Excel/CSV non vengono mai modificati.
+
+PASSWORD, PIN E CODICE DI RECUPERO PERSI
+----------------------------------------
+Se hai ancora il codice di recupero: nella schermata di accesso premi "Password dimenticata?".
+Se hai perso anche il codice: l'amministratore del computer esegue "Ripristina_account.bat"
+(in questa cartella). Lo script chiede di scrivere SI, controlla che il programma sia chiuso ed
+elimina SOLO l'account: impostazioni, tema, configurazioni dei file e file Excel restano intatti.
+Al prossimo avvio si crea un nuovo account.
+
+ASSISTENZA
+----------
+Orizon-AIX - info@orizon-aix.com - +39 380 7525438
+Se compare "Si e' verificato un errore imprevisto", invia il file orizon.log indicato nel messaggio.

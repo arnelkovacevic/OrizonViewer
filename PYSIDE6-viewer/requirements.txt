@@ -1,9 +1,11 @@
-PySide6
-pandas
-openpyxl
-xlrd
-pyxlsb
-odfpy
-python-barcode
-qrcode
-pillow
+# Versioni MINIME (non fissate). Provato con: Python 3.10, PySide6 6.12, pandas 2.3, openpyxl 3.1,
+# xlrd 2.0, pyxlsb 1.0, odfpy 1.4, python-barcode 0.16, qrcode 8.2, pillow 12.
+PySide6>=6.6
+pandas>=2.0
+openpyxl>=3.1
+xlrd>=2.0.1
+pyxlsb>=1.0.10
+odfpy>=1.4.1
+python-barcode>=0.15
+qrcode>=7.4
+pillow>=10.0

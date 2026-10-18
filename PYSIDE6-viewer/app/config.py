@@ -8,6 +8,7 @@ APP_VERSION = "1.2.0"
 COPYRIGHT_YEAR = "2026"
 
 LOGO_FILE = os.path.join("assets", "Orizon-com.jpg")
+ICON_FILE = os.path.join("assets", "orizon.ico")
 ICON_DIR = os.path.join("assets", "icons")
 _UI_FONTS = ["Helvetica Neue", "Helvetica", "Segoe UI", "SF Pro Text", "Arial", "DejaVu Sans"]
 _MONO_FONTS = ["Menlo", "Consolas", "Courier New", "DejaVu Sans Mono"]

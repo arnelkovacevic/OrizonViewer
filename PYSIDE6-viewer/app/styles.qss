@@ -278,3 +278,6 @@ QPushButton#LinkButton { background: transparent; color: $accent_hover; border: 
 QPushButton#LinkButton:hover { color: $text; }
 QPushButton#LinkButton:pressed { color: $accent; }
 QPushButton#LinkButton:disabled { color: $dis_text; }
+
+QLabel#LogPath { font-size: {14}px; color: $muted2; background-color: $surface; border: 1px solid $border;
+    border-radius: {10}px; padding: {8}px {12}px; }
