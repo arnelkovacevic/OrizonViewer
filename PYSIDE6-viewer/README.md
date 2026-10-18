@@ -12,6 +12,24 @@ Visualizzatore di tabelle in modalità kiosk (schermo intero) con ricerca dinami
 - Ricerca istantanea: parole separate da `%` o spazio, in qualsiasi ordine (es. `banco%vite`)
 - Tema scuro / chiaro, ultimo file riaperto all'avvio (opzione in Impostazioni)
 
+## Come si usa
+1. **Accesso**: al primo avvio si crea l'account (vedi sotto); poi nome utente e password.
+2. **Importa file** (icona in alto a destra, chiede il PIN): scegli un file (.xlsx .xlsm .xls .xlsb .ods .csv .tsv .txt). Si apre la procedura guidata:
+   - *Foglio* (o, per i file di testo, separatore e codifica con anteprima) e riga di intestazione;
+   - *Colonne*: quali mostrare e in che ordine (frecce ▲▼ o trascinamento);
+   - *Dettagli*: colonna del codice, tipo di codice a barre, testo sopra e testo evidenziato, con anteprima dal vivo.
+   La configurazione viene ricordata: reimportando lo stesso file la procedura non riappare.
+3. **Cerca** scrivendo nel campo in alto: le parole (separate da spazio o `%`) possono stare in qualsiasi ordine. «Nuova ricerca» azzera il campo.
+4. **Dettagli articolo**: doppio clic (o Invio) su una riga.
+5. **Impostazioni** (ingranaggio): *Generale* (tema scuro/chiaro, riapri l'ultimo file), *File* (formato, foglio, colonne, «Modifica configurazione» con PIN, eliminare le configurazioni salvate), *Sicurezza* (cambia password e PIN, nuovo codice di recupero), *Info* (versione 1.2.0). Un clic sul logo apre direttamente *Info*.
+6. **Esci** (icona power): chiede il PIN.
+
+## Account e accesso
+- Al primo avvio compare «Configurazione iniziale»: nome utente (3-20 caratteri: lettere, numeri, `. _ -`), password (almeno 6 caratteri) e **PIN di 4-6 cifre**. Il PIN protegge Importa, Modifica configurazione ed Esci.
+- Viene mostrato **una sola volta** il **codice di recupero** (formato `XXXX-XXXX-XXXX`): scrivilo o salvalo su file e conservalo in un luogo sicuro.
+- Dopo **5 tentativi errati** (accesso, PIN o codice) l'accesso si blocca per **30 secondi**, anche dopo un riavvio.
+- Password dimenticata: «Password dimenticata?» nella schermata di accesso, con il codice di recupero (si imposta una nuova password, un nuovo PIN e si riceve un nuovo codice).
+
 ## Avvio rapido (doppio clic su Avvia_OrizonViewer.bat)
 1. Installa Python 3.9 o superiore da <https://www.python.org/downloads/> e **spunta «Add Python to PATH»**.
 2. Fai doppio clic su **`Avvia_OrizonViewer.bat`** (nella cartella `PYSIDE6-viewer`).
@@ -37,8 +55,8 @@ Al primo avvio Windows può mostrare l'avviso SmartScreen (l'exe non è firmato)
 `Ripristina_account.bat` deve restare nella stessa cartella dell'exe.
 
 ## Requisiti
-- Windows 10/11 (l'exe) oppure Windows/macOS/Linux per l'esecuzione da sorgente
-- Python 3.9+ (provato con 3.10) solo per `Avvia_OrizonViewer.bat` e per creare l'exe
+- Windows 10/11 per l'exe (l'applicazione è sviluppata e provata su macOS e pensata per Windows); da sorgente gira anche su macOS e Linux
+- Python 3.9+ (provato con 3.10 e 3.13) solo per `Avvia_OrizonViewer.bat` e per creare l'exe; per creare l'exe usa Python **3.10.1 o più recente** (3.11+ consigliato): PyInstaller non funziona con la 3.10.0
 - Librerie: vedi `requirements.txt` (versioni minime: PySide6, pandas, openpyxl, xlrd, pyxlsb, odfpy, python-barcode, qrcode, pillow)
 
 ## Dove vengono salvati i dati
@@ -50,7 +68,7 @@ Windows: `%APPDATA%\Orizon-AIX\OrizonViewer` (macOS: `~/Library/Application Supp
 | `profiles.json` | configurazioni dei file (fogli, colonne, popup) |
 | `orizon.log` | registro eventi ed errori imprevisti (da inviare all'assistenza) |
 
-Le impostazioni (tema, ultimo file) sono nel registro di Windows (`HKCU\Software\Orizon-AIX`). I file Excel/CSV non vengono mai modificati.
+Le impostazioni (tema, ultimo file) sono nel registro di Windows (`HKCU\Software\Orizon-AIX\OrizonViewer`). `orizon.log` si ruota da solo (circa 200 KB, 2 copie di riserva). I file Excel/CSV non vengono mai modificati.
 
 ## Reimpostare l'account
 Se password, PIN **e** codice di recupero sono andati persi, l'amministratore del computer può eseguire da Windows
@@ -73,11 +91,28 @@ Al prossimo avvio si crea un nuovo account. Con il codice di recupero basta inve
 | Password, PIN e codice persi | Vedi «Reimpostare l'account» |
 | Accesso bloccato 30 secondi | Dopo 5 tentativi errati: attendere il termine del conto alla rovescia |
 
+## Struttura del progetto
+| Percorso | Contenuto |
+|---|---|
+| `main.py` | avvio, gestione errori imprevisti |
+| `app/` | interfaccia, account (`auth.py`), lettura file (`readers.py`), profili, wizard (`wizard/`), impostazioni (`settings_tabs/`) |
+| `assets/` | logo, icona `orizon.ico`, icone SVG |
+| `tools/` | `make_icon.py`, `print_version.py`, `LEGGIMI.txt` per la distribuzione |
+| `tests/` | test automatici |
+| `Avvia_OrizonViewer.bat`, `build_exe.bat`, `Ripristina_account.bat` | utilità Windows |
+
+La versione è in un solo punto: `APP_VERSION` in `app/config.py`.
+
 ## Test
 ```
 pip install pytest xlwt
 python -m pytest tests
 ```
+
+## Cronologia versioni
+- **1.2.0**: account locale (registrazione, PIN personale, codice di recupero, blocco temporaneo); avvio con doppio clic, creazione dell'exe, icona, gestione degli errori imprevisti
+- **1.1.0**: procedura guidata «Configurazione file», configurazioni salvate, formati xlsx/xlsm/xls/xlsb/ods/csv/tsv/txt, tipi di codice a barre, tema chiaro, dettaglio articolo configurabile
+- **1.0.1**: prima versione PySide6 (tema scuro, ricerca, popup con codice a barre)
 
 ## Licenza / contatti
 Orizon-AIX — orizon-aix.com — info@orizon-aix.com
@@ -92,4 +127,5 @@ Orizon Viewer 1.2.0 is a kiosk-mode table viewer built with PySide6 (Qt6): local
 - Build the exe: double-click `build_exe.bat` → `release\OrizonViewer_v<version>\`
 - Run from source: `pip install -r requirements.txt` then `python main.py`
 - Tests: `python -m pytest tests`
+- Version history: 1.2.0 local account + Windows tooling · 1.1.0 file wizard, many formats · 1.0.1 first PySide6 release
 - Data folder: `%APPDATA%\Orizon-AIX\OrizonViewer` (`account.json`, `profiles.json`, `orizon.log`)

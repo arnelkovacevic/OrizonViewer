@@ -1,5 +1,5 @@
-ORIZON VIEWER - LEGGIMI
-=======================
+ORIZON VIEWER 1.2.0 - LEGGIMI
+=============================
 
 Questa cartella contiene:
   OrizonViewer.exe        il programma

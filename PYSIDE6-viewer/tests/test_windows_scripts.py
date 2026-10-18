@@ -108,3 +108,14 @@ def test_requirements_are_minimums_only():
 
 def test_gitignore_has_release():
     assert "release/" in read(".gitignore").split()
+
+
+def test_version_is_consistent_everywhere():
+    sys.path.insert(0, ROOT)
+    from app import config
+    v = config.APP_VERSION
+    assert v == "1.2.0"
+    assert f"Orizon Viewer {v} (PySide6)" in read("README.md")
+    assert f"Orizon Viewer {v} is a kiosk-mode" in read("README.md")
+    assert f"ORIZON VIEWER {v} - LEGGIMI" in read(os.path.join("tools", "LEGGIMI.txt"))
+    assert f"versione {v}" in read(os.path.join("..", "Readme.md")) or f"{v}" in read(os.path.join("..", "Readme.md"))
