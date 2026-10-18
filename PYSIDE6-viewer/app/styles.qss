@@ -260,3 +260,9 @@ QComboBox QAbstractItemView {
 }
 QComboBox QAbstractItemView::item { min-height: {36}px; padding: {4}px {10}px; }
 QStackedWidget { background: transparent; }
+
+QTableWidget#TextPreview {
+    background-color: $table_bg; alternate-background-color: $table_alt; color: $text;
+    gridline-color: $grid; border: 1px solid $border; border-radius: {10}px; font-size: {15}px;
+}
+QTableWidget#TextPreview QHeaderView::section { font-size: {15}px; padding: {4}px {8}px; }

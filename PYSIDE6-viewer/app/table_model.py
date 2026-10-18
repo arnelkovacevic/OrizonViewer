@@ -3,7 +3,7 @@ from PySide6.QtCore import QAbstractTableModel, QModelIndex, QRect, Qt, QThread,
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
-from . import theme, xlsx_reader
+from . import readers, theme
 from .search import Dataset, fold
 
 
@@ -160,7 +160,10 @@ class ExcelLoader(QThread):
     def run(self):
         try:
             p = self.profile
-            ds = xlsx_reader.load_dataset(p.path, p.sheet, p.header_row, p.needed_columns())
+            df = readers.read_data(p.path, p.sheet, p.header_row, p.needed_columns(), p.text_opts)
+            ds = Dataset(list(df.itertuples(index=False, name=None)), list(df.columns))
             self.loaded.emit(ds, p)
+        except readers.ReaderError as e:
+            self.failed.emit(e.message)
         except Exception as e:
-            self.failed.emit(str(e))
+            self.failed.emit(f"Errore durante l'importazione: {str(e)[:160]}")

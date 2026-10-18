@@ -6,7 +6,8 @@ Visualizzatore Excel in modalità kiosk (schermo intero) con ricerca dinamica, d
 - Accesso all'avvio (utente/password salvati solo come hash SHA-256)
 - Schermo intero, adattato a qualsiasi risoluzione; Esc, Alt+F4 e X non chiudono l'app
 - «Esci» e «Importa Excel» richiedono il PIN
-- Qualsiasi file .xlsx: la procedura guidata «Configurazione file» fa scegliere foglio, colonne (e ordine) e dettagli del popup
+- Formati: .xlsx .xlsm .xls .xlsb .ods .csv .tsv .txt (file di testo: separatore e codifica rilevati automaticamente e modificabili)
+- La procedura guidata «Configurazione file» fa scegliere foglio, colonne (e ordine) e dettagli del popup
 - Configurazioni salvate per struttura del file (non serve riconfigurare lo stesso file); caricamento in background
 - Popup articolo configurabile: Code128, Code39, EAN-13, EAN-8, UPC-A, ITF, QR Code, testo sopra e testo evidenziato
 - Ultimo file riaperto all'avvio (opzione in Impostazioni)

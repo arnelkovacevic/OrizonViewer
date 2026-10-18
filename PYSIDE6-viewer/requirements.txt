@@ -1,5 +1,9 @@
 PySide6
+pandas
 openpyxl
+xlrd
+pyxlsb
+odfpy
 python-barcode
 qrcode
 pillow

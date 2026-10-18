@@ -5,6 +5,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import QGridLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
+from .. import readers
 from ..details import TYPE_SHORT
 
 
@@ -26,10 +27,16 @@ class FileTab(QWidget):
             details_on = info.get("details")
             rows = [
                 ("File", os.path.basename(info["path"]), info["path"]),
+                ("Formato", readers.format_label(info["path"]), ""),
                 ("Foglio", info["sheet"], ""),
                 ("Colonne visualizzate", str(info["columns"]), ""),
                 ("Dettagli", "Attivi" if details_on else "Non attivi", ""),
             ]
+            if info.get("fmt") == "text":
+                rows = [r for r in rows if r[0] != "Foglio"]
+                opts = info.get("text_opts") or {}
+                rows.insert(2, ("Separatore", readers.delimiter_label(opts.get("delimiter", ";")), ""))
+                rows.insert(3, ("Codifica", opts.get("encoding", ""), ""))
             if details_on:
                 rows.append(("Codice a barre", TYPE_SHORT.get(info.get("type"), "-"), ""))
         else:

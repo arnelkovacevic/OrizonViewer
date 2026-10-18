@@ -1,6 +1,6 @@
 import os
 
-from app import file_profiles, xlsx_reader
+from app import file_profiles, readers
 from app.details import DetailSpec, count_invalid, is_valid, suggest_type
 from app.file_profiles import Profile, ProfileStore, resolve, signature
 
@@ -27,9 +27,9 @@ def test_suggestion_and_warning():
 
 
 def test_reader_names_and_header_row(fixture_xlsx):
-    sheets = xlsx_reader.list_sheets(fixture_xlsx)
+    sheets = readers.list_sheets(fixture_xlsx)
     assert [s.name for s in sheets] == ["Titolo", "Dati", "Vuoto"]
-    pv = xlsx_reader.read_preview(fixture_xlsx, "Dati", header_row=2)
+    pv = readers.preview(fixture_xlsx, "Dati", header_row=2)
     assert len(pv.names) == 20
     assert pv.names[5] == "Colonna 6" and pv.names[7] == "Colonna 8"      # intestazioni vuote
     assert pv.names[2] == "Descrizione" and pv.names[6] == "Descrizione (2)"  # duplicati
@@ -38,7 +38,9 @@ def test_reader_names_and_header_row(fixture_xlsx):
 
 
 def test_load_only_needed_columns(fixture_xlsx):
-    ds = xlsx_reader.load_dataset(fixture_xlsx, "Dati", 2, ["Descrizione (2)", "EAN"])
+    from app.search import Dataset
+    df = readers.read_data(fixture_xlsx, "Dati", 2, ["Descrizione (2)", "EAN"])
+    ds = Dataset(list(df.itertuples(index=False, name=None)), list(df.columns))
     assert ds.columns == ["Descrizione (2)", "EAN"] and len(ds) == 60
     assert ds.rows[0][0] == "Seconda descrizione 1"
     assert ds.search("seconda%descrizione%7") != []
@@ -46,7 +48,7 @@ def test_load_only_needed_columns(fixture_xlsx):
 
 def test_profile_roundtrip_and_match(tmp_path, fixture_xlsx):
     store = ProfileStore(str(tmp_path / "profiles.json"))
-    pv = xlsx_reader.read_preview(fixture_xlsx, "Dati", 2)
+    pv = readers.preview(fixture_xlsx, "Dati", 2)
     spec = DetailSpec(enabled=True, code_col="EAN", barcode_type="ean13", above_col="Descrizione",
                       hl_col="Layout", hl_color="blu")
     prof = Profile(fixture_xlsx, "Dati", 2, pv.names, ["Codice", "EAN", "Layout"], spec, {"Codice": 120.0})
@@ -71,7 +73,7 @@ def test_changed_structure_and_none(tmp_path, fixture_xlsx):
     from openpyxl import load_workbook
     store = ProfileStore(str(tmp_path / "p.json"))
     assert resolve(fixture_xlsx, store).kind == "none"
-    pv = xlsx_reader.read_preview(fixture_xlsx, "Dati", 2)
+    pv = readers.preview(fixture_xlsx, "Dati", 2)
     store.upsert(Profile(fixture_xlsx, "Dati", 2, pv.names, ["Codice", "Layout"]))
     wb = load_workbook(fixture_xlsx)
     wb["Dati"].cell(row=2, column=4, value="Posizione")      # «Layout» rinominata

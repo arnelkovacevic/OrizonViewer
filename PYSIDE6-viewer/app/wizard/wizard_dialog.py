@@ -5,7 +5,7 @@ from typing import Optional
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QStackedWidget, QVBoxLayout
 
-from .. import xlsx_reader
+from .. import readers
 from ..details import DetailSpec
 from ..file_profiles import Profile
 from ..modal_overlay import BaseModal
@@ -51,7 +51,9 @@ class WizardDialog(BaseModal):
         s = self.s
         self.path, self.sheets, self.prefill = path, sheets, prefill
         self.profile: Optional[Profile] = None
-        self.preview: Optional[xlsx_reader.Preview] = None
+        self.preview: Optional[readers.Preview] = None
+        self.kind = readers.kind(path)
+        self.text_opts: Optional[dict] = None
         self._cols_key = None
         self._details_key = None
         self.step = 0
@@ -103,9 +105,20 @@ class WizardDialog(BaseModal):
 
         self.header_row = prefill.header_row if prefill else 1
         self._sync_steppers()
-        self.step_sheet.set_file(os.path.basename(path), sheets, prefill.sheet if prefill else None)
+        if self.kind == "text":
+            # separatore e codifica: dal profilo se esiste, altrimenti rilevati automaticamente
+            if prefill is not None and prefill.fmt == "text" and prefill.text_opts:
+                self.text_opts = dict(prefill.text_opts)
+            else:
+                self.text_opts = readers.detect_text_options(path)
+            self.step_sheet.set_text_file(os.path.basename(path), self.text_opts)
+            self.step_sheet.textOptionsChanged.connect(self._on_text_options)
+            self._refresh_text_preview()
+        else:
+            self.step_sheet.set_file(os.path.basename(path), sheets, prefill.sheet if prefill else None)
         self.finalize()
-        self.goto(1 if len(sheets) == 1 else 0)  # un solo foglio: si passa subito alle colonne
+        # un solo foglio: si passa subito alle colonne; per i file di testo si parte dalle opzioni
+        self.goto(1 if (len(sheets) == 1 and self.kind != "text") else 0)
 
     # ------------------------------------------------------------ stato
     @property
@@ -119,8 +132,22 @@ class WizardDialog(BaseModal):
     def _on_header_row(self, value: int):
         self.header_row = value
         self._sync_steppers()
+        if self.step == 0 and self.kind == "text":
+            self._refresh_text_preview()
         if self.step == 1:  # le colonne dipendono dalla riga di intestazione
             self._ensure_columns()
+
+    def _on_text_options(self):
+        self.text_opts = self.step_sheet.text_options()
+        self._refresh_text_preview()
+
+    def _refresh_text_preview(self):
+        """Anteprima (~10 righe) del file di testo con separatore/codifica correnti."""
+        try:
+            df = readers.read_preview(self.path, readers.TEXT_SHEET, self.header_row, 10, self.text_opts)
+            self.step_sheet.show_preview_table(list(df.columns), df.values.tolist())
+        except readers.ReaderError as e:
+            self.step_sheet.show_preview_table([], [], e.message)
 
     # ------------------------------------------------------------ navigazione
     def goto(self, step: int):
@@ -156,19 +183,19 @@ class WizardDialog(BaseModal):
         sheet = self.sheet
         if sheet is None:
             return False
-        key = (sheet, self.header_row)
+        key = (sheet, self.header_row, tuple(sorted(self.text_opts.items())) if self.text_opts else None)
         if key == self._cols_key:
             return True
         try:
-            self.preview = xlsx_reader.read_preview(self.path, sheet, self.header_row)
-        except xlsx_reader.XlsxError as e:
-            show_toast(self, f"Impossibile leggere il foglio: {str(e)[:120]}")
+            self.preview = readers.preview(self.path, sheet, self.header_row, self.text_opts)
+        except readers.ReaderError as e:
+            show_toast(self, e.message)
             return False
         names = self.preview.names
         if not names:
             show_toast(self, "Nessuna colonna trovata: controlla la riga di intestazione")
         use_prefill = (self.prefill is not None and self.prefill.sheet == sheet
-                       and self.prefill.header_row == self.header_row)
+                       and self.prefill.header_row == self.header_row and self.prefill.fmt == self.kind)
         wanted = [c for c in self.prefill.columns if c in names] if use_prefill else []
         selected = wanted or default_columns(names)
         order = order_with_selection(names, selected)
@@ -183,8 +210,9 @@ class WizardDialog(BaseModal):
             return
         names = self.preview.names
         self.step_details.set_columns(names, self.preview.rows)
-        sheet, header = self._cols_key
-        if self.prefill and self.prefill.sheet == sheet and self.prefill.header_row == header:
+        sheet, header = self._cols_key[:2]
+        if self.prefill and self.prefill.sheet == sheet and self.prefill.header_row == header \
+                and self.prefill.fmt == self.kind:
             spec = self.prefill.details.drop_missing(names)
         else:
             spec = default_details(names)
@@ -192,7 +220,7 @@ class WizardDialog(BaseModal):
         self._details_key = self._cols_key
 
     def _confirm(self):
-        sheet, header = self._cols_key
+        sheet, header = self._cols_key[:2]
         widths = {}
         if self.prefill and self.prefill.sheet == sheet:
             widths = dict(self.prefill.widths)
@@ -201,5 +229,6 @@ class WizardDialog(BaseModal):
             all_columns=list(self.preview.names),
             columns=self.step_cols.selected_in_order(),
             details=self.step_details.get_spec(), widths=widths,
+            fmt=self.kind, text_opts=dict(self.text_opts) if self.text_opts else None,
         )
         self.accept()

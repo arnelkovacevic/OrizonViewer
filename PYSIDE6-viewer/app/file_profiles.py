@@ -8,13 +8,19 @@ from typing import Optional
 
 from PySide6.QtCore import QStandardPaths
 
-from . import xlsx_reader
+from . import readers
 from .details import DetailSpec
 
 
-def signature(sheet: str, names: list) -> str:
-    """Firma = hash di nome del foglio + elenco dei nomi colonna."""
+def signature(sheet: str, names: list, fmt: str = "excel", text_opts: Optional[dict] = None) -> str:
+    """Firma = hash di nome del foglio + nomi colonna (+ tipo di formato; per il testo anche
+    separatore e codifica). Per Excel senza opzioni la formula e' quella storica: i profili salvati
+    con le versioni precedenti restano validi."""
     raw = sheet + "\x1e" + "\x1f".join(names)
+    if fmt != "excel" or text_opts:
+        raw += "\x1d" + fmt
+        if text_opts:
+            raw += "\x1d" + text_opts.get("delimiter", "") + "\x1d" + text_opts.get("encoding", "")
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
 
 
@@ -32,10 +38,12 @@ class Profile:
     details: DetailSpec = field(default_factory=DetailSpec)
     widths: dict = field(default_factory=dict)  # nome colonna -> larghezza a scala 1.0
     last_used: float = 0.0
+    fmt: str = "excel"                          # "excel" | "ods" | "text"
+    text_opts: Optional[dict] = None            # {"delimiter": ";", "encoding": "UTF-8"} solo per il testo
 
     @property
     def id(self) -> str:
-        return signature(self.sheet, self.all_columns)
+        return signature(self.sheet, self.all_columns, self.fmt, self.text_opts)
 
     @property
     def name(self) -> str:
@@ -54,6 +62,7 @@ class Profile:
             "id": self.id, "path": self.path, "sheet": self.sheet, "header_row": self.header_row,
             "all_columns": self.all_columns, "columns": self.columns,
             "details": self.details.to_dict(), "widths": self.widths, "last_used": self.last_used,
+            "fmt": self.fmt, "text_opts": self.text_opts,
         }
 
     @classmethod
@@ -63,6 +72,7 @@ class Profile:
             all_columns=list(d.get("all_columns", [])), columns=list(d.get("columns", [])),
             details=DetailSpec.from_dict(d.get("details", {})), widths=dict(d.get("widths", {})),
             last_used=float(d.get("last_used", 0.0)),
+            fmt=d.get("fmt", "excel"), text_opts=d.get("text_opts") or None,
         )
 
 
@@ -118,26 +128,26 @@ class Match:
 
 def resolve(path: str, store: ProfileStore) -> Match:
     """Cerca un profilo applicabile al file.
-    applied: stessa firma (foglio + nomi colonna) e tutte le colonne esistono ancora;
+    applied: stessa firma (formato + foglio + nomi colonna) e tutte le colonne esistono ancora;
     changed: esiste un profilo per questo file ma la struttura non coincide piu';
-    none: file mai configurato."""
-    try:
-        sheets = {s.name for s in xlsx_reader.list_sheets(path)}
-    except xlsx_reader.XlsxError:
-        raise
+    none: file mai configurato. Solleva readers.ReaderError se il file non e' leggibile."""
+    fmt = readers.kind(path)
+    sheets = {s.name for s in readers.list_sheets(path)}
     cache = {}
     same_path = []
     for p in store.all():  # piu' recenti prima
+        if p.fmt != fmt:
+            continue
         is_same = _norm(p.path) == _norm(path)
         if is_same:
             same_path.append(p)
         if p.sheet not in sheets:
             continue
-        key = (p.sheet, p.header_row)
+        key = (p.sheet, p.header_row, json.dumps(p.text_opts, sort_keys=True))
         if key not in cache:
-            cache[key] = xlsx_reader.header_names(path, p.sheet, p.header_row)
+            cache[key] = readers.header_names(path, p.sheet, p.header_row, p.text_opts)
         names = cache[key]
-        if signature(p.sheet, names) == p.id and all(c in names for c in p.columns):
+        if signature(p.sheet, names, p.fmt, p.text_opts) == p.id and all(c in names for c in p.columns):
             if not is_same:  # stessa struttura in un file diverso: il profilo segue il nuovo percorso
                 p.path = path
             return Match("applied", p)

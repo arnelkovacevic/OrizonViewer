@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QProgressBar, QPushButton, QStackedLayout, QTableView, QVBoxLayout, QWidget,
 )
 
-from . import config, theme, xlsx_reader
+from . import config, readers, theme
 from .confirm_dialog import ConfirmDialog
 from .detail_dialog import DetailDialog, NoDetailsDialog
 from .file_profiles import ProfileStore, resolve
@@ -267,7 +267,8 @@ class MainWindow(QWidget):
         if p is None:
             return {}
         return {"path": p.path, "sheet": p.sheet, "columns": len(p.columns),
-                "details": p.details.enabled, "type": p.details.barcode_type}
+                "details": p.details.enabled, "type": p.details.barcode_type,
+                "fmt": p.fmt, "text_opts": p.text_opts}
 
     def _confirm_clear_profiles(self):
         if ConfirmDialog.ask(self, "Elimina configurazioni",
@@ -362,7 +363,7 @@ class MainWindow(QWidget):
             return
         start = os.path.dirname(self.settings.last_file()) or os.path.expanduser("~")
         path, _ = QFileDialog.getOpenFileName(
-            self, "Seleziona un file Excel", start, "File Excel (*.xlsx *.xlsm)"
+            self, "Seleziona un file Excel", start, readers.FILE_FILTER
         )
         if path:
             self.open_path(path)
@@ -371,8 +372,8 @@ class MainWindow(QWidget):
         """Profilo salvato con la stessa struttura -> carica subito; altrimenti wizard."""
         try:
             match = resolve(path, self.store)
-        except xlsx_reader.XlsxError as e:
-            show_toast(self, f"Errore durante l'importazione: {str(e)[:160]}", "error", 5000)
+        except readers.ReaderError as e:
+            show_toast(self, e.message, "error", 5000)
             return
         if match.kind == "applied":
             self.load_profile(match.profile, applied=True)
@@ -383,11 +384,11 @@ class MainWindow(QWidget):
 
     def run_wizard(self, path: str, prefill=None, notice: str = None):
         try:
-            sheets = xlsx_reader.list_sheets(path)
-        except xlsx_reader.XlsxError as e:
-            show_toast(self, f"Errore durante l'importazione: {str(e)[:160]}", "error", 5000)
+            sheets = readers.list_sheets(path)
+            dlg = WizardDialog(self, path, sheets, prefill)
+        except readers.ReaderError as e:
+            show_toast(self, e.message, "error", 5000)
             return
-        dlg = WizardDialog(self, path, sheets, prefill)
         if notice:
             dlg.toast_when_shown(notice)
         if dlg.exec() == WizardDialog.Accepted and dlg.profile is not None:
@@ -426,7 +427,7 @@ class MainWindow(QWidget):
             show_toast(self, f"Caricati {fmt_int(len(dataset))} articoli", "success", 1800)
 
     def _on_failed(self, message):
-        show_toast(self, f"Errore durante l'importazione: {message[:160]}", "error", 5000)
+        show_toast(self, message, "error", 5000)
 
     def _on_loader_finished(self):
         self._loader.deleteLater()
