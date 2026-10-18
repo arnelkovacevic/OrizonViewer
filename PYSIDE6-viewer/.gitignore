@@ -1,0 +1,10 @@
+*.xlsx
+dist/
+build/
+__pycache__/
+*.pyc
+venv/
+.venv/
+.pytest_cache/
+*.spec.bak
+.DS_Store
