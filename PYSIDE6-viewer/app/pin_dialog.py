@@ -2,7 +2,8 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton
 
-from . import config
+from . import auth
+from .auth_widgets import lock_message
 from .modal_overlay import BaseModal, app_scale, center_on  # noqa: F401  (ri-esportati)
 from .toast import show_toast
 
@@ -21,6 +22,7 @@ class PinDialog(BaseModal):
         self.edit.setEchoMode(QLineEdit.Password)
         self.edit.setAlignment(Qt.AlignCenter)
         self.edit.setPlaceholderText("PIN")
+        self.edit.setMaxLength(6)
         self.edit.returnPressed.connect(self._confirm)
         self.body.addWidget(self.edit)
 
@@ -58,11 +60,12 @@ class PinDialog(BaseModal):
             self.edit.insert(key)
 
     def _confirm(self):
-        if config.verify(self.edit.text(), config.PIN_HASH):
+        res = auth.get_store().check_pin(self.edit.text())
+        if res.ok:
             self.accept()
-        else:
-            self.edit.clear()
-            show_toast(self, "PIN errato")
+            return
+        self.edit.clear()
+        show_toast(self, lock_message(res.remaining) if res.locked else "PIN errato")
 
     def showEvent(self, e):
         super().showEvent(e)

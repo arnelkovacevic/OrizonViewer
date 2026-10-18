@@ -9,7 +9,8 @@ from PySide6.QtWidgets import (
     QProgressBar, QPushButton, QStackedLayout, QTableView, QVBoxLayout, QWidget,
 )
 
-from . import config, readers, theme
+from . import auth, config, readers, theme
+from .auth_widgets import AccountFormDialog, RecoveryCodeDialog, lock_message
 from .confirm_dialog import ConfirmDialog
 from .detail_dialog import DetailDialog, NoDetailsDialog
 from .file_profiles import ProfileStore, resolve
@@ -257,7 +258,8 @@ class MainWindow(QWidget):
 
     def open_settings(self, tab=TAB_GENERAL):
         tab = tab if isinstance(tab, int) else TAB_GENERAL
-        dlg = SettingsDialog(self, self.settings, tab, self._file_info(), self._confirm_clear_profiles)
+        dlg = SettingsDialog(self, self.settings, tab, self._file_info(), self._confirm_clear_profiles,
+                             self.account_action)
         dlg.exec()
         if dlg.requested == "edit":
             QTimer.singleShot(0, self.edit_configuration)
@@ -278,6 +280,60 @@ class MainWindow(QWidget):
             self.store.clear()
             self._profile_saved = False
             show_toast(self, "Configurazioni eliminate", "success", 2200)
+
+    def account_action(self, kind: str, host):
+        """Impostazioni → Sicurezza. Il form si apre sulla finestra principale; l'esito compare come toast
+        sul dialogo Impostazioni (`host`), che e' quello visibile."""
+        store = auth.get_store()
+
+        def fail(res, msg):
+            return res, (lock_message(res.remaining) if res.locked else msg)
+
+        if kind == "password":
+            def validate(v):
+                return {"new": auth.validate_password(v["new"]) if v["new"] else None,
+                        "confirm": "Le password non coincidono" if v["confirm"] and v["confirm"] != v["new"] else None}
+
+            def submit(v):
+                res = store.change_password(v["current"], v["new"])
+                return (res, None) if res.ok else fail(res, "Password attuale errata")
+
+            dlg = AccountFormDialog(self, "Cambia password", [("current", "Password attuale", "password"),
+                                    ("new", "Nuova password", "password"), ("confirm", "Conferma nuova password", "password")],
+                                    submit, validate, "Cambia password")
+            done = "Password aggiornata"
+        elif kind == "pin":
+            def validate(v):
+                return {"new": auth.validate_pin(v["new"]) if v["new"] else None,
+                        "confirm": "I PIN non coincidono" if v["confirm"] and v["confirm"] != v["new"] else None}
+
+            def submit(v):
+                res = store.change_pin(v["password"], v["new"])
+                return (res, None) if res.ok else fail(res, "Password errata")
+
+            dlg = AccountFormDialog(self, "Cambia PIN", [("password", "Password attuale", "password"),
+                                    ("new", "Nuovo PIN (4-6 cifre)", "pin"), ("confirm", "Conferma nuovo PIN", "pin")],
+                                    submit, validate, "Cambia PIN")
+            done = "PIN aggiornato"
+        else:
+            holder = {}
+
+            def submit(v):
+                res, code = store.new_recovery_code(v["password"])
+                if res.ok:
+                    holder["code"] = code
+                    return res, None
+                return fail(res, "Password errata")
+
+            dlg = AccountFormDialog(self, "Nuovo codice di recupero", [("password", "Password attuale", "password")],
+                                    submit, None, "Genera codice",
+                                    "Il codice attuale smetterà di funzionare.")
+            done = "Nuovo codice di recupero generato"
+        if dlg.exec() != AccountFormDialog.Accepted:
+            return
+        if kind == "recovery":
+            RecoveryCodeDialog.show_code(self, holder["code"], store.device_name)
+        show_toast(host, done, "success")
 
     def edit_configuration(self):
         """Impostazioni → File → Modifica configurazione (richiede il PIN)."""

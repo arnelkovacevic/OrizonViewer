@@ -266,3 +266,15 @@ QTableWidget#TextPreview {
     gridline-color: $grid; border: 1px solid $border; border-radius: {10}px; font-size: {15}px;
 }
 QTableWidget#TextPreview QHeaderView::section { font-size: {15}px; padding: {4}px {8}px; }
+
+/* ---- account / accesso ---- */
+QLabel#FieldError { color: $danger_text; font-size: {14}px; font-weight: 600; }
+QLabel#LockNotice { color: $warn; font-size: {17}px; font-weight: 700; }
+QLabel#Footnote { color: $faint; font-size: {13}px; }
+QLabel#RecoveryCode { font-family: MONOFONTS; font-weight: 800; color: $accent_hover;
+    background-color: $surface; border: 1px dashed $accent; border-radius: {12}px; padding: {14}px {10}px; }
+QPushButton#LinkButton { background: transparent; color: $accent_hover; border: none; padding: {6}px; font-size: {16}px;
+    font-weight: 600; text-decoration: underline; }
+QPushButton#LinkButton:hover { color: $text; }
+QPushButton#LinkButton:pressed { color: $accent; }
+QPushButton#LinkButton:disabled { color: $dis_text; }
