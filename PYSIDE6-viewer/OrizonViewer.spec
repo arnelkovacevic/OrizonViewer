@@ -11,11 +11,11 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=datas,
-    hiddenimports=['openpyxl', 'barcode.codex', 'PySide6.QtSvg'],
+    hiddenimports=['openpyxl', 'barcode.codex', 'qrcode', 'PySide6.QtSvg'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter'],
+    excludes=['tkinter', 'pandas'],
     noarchive=False,
     optimize=0,
 )

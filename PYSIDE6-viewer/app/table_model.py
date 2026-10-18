@@ -1,28 +1,29 @@
 """Modello tabella (QAbstractTableModel), delegate con evidenziazione e thread di caricamento Excel."""
-import pandas as pd
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, QRect, Qt, QThread, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QStyle, QStyledItemDelegate, QStyleOptionViewItem
 
-from . import config, theme
+from . import theme, xlsx_reader
 from .search import Dataset, fold
-
-HEADERS = [config.ALL_COLUMNS[i] for i in config.DISPLAY_COLUMNS]
 
 
 class ArticleModel(QAbstractTableModel):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._ds = Dataset([])
+        self._ds = Dataset([], [])
+        self._display = []  # indici (in Dataset.columns) delle colonne mostrate, nell'ordine scelto
         self._rows = []  # indici di Dataset visibili, nell'ordine mostrato
         self._sort_col = -1
         self._sort_order = Qt.AscendingOrder
         self._terms = {}  # colonna vista -> parti da evidenziare
 
     # ---- dati
-    def set_dataset(self, ds: Dataset):
+    def set_dataset(self, ds: Dataset, display_names: list = None):
         self.beginResetModel()
         self._ds = ds
+        names = display_names if display_names is not None else ds.columns
+        self._display = [ds.col_index(n) for n in names]
+        self._sort_col = -1
         self._rows = list(range(len(ds)))
         self._apply_sort()
         self.endResetModel()
@@ -51,10 +52,10 @@ class ArticleModel(QAbstractTableModel):
 
     # ---- ordinamento
     def _apply_sort(self):
-        if self._sort_col < 0:
+        if self._sort_col < 0 or self._sort_col >= len(self._display):
             self._rows.sort()
             return
-        keys = self._ds.sort_keys(config.DISPLAY_COLUMNS[self._sort_col])
+        keys = self._ds.sort_keys(self._display[self._sort_col])
         self._rows.sort(key=keys.__getitem__, reverse=self._sort_order == Qt.DescendingOrder)
 
     def sort(self, column, order=Qt.AscendingOrder):
@@ -68,20 +69,20 @@ class ArticleModel(QAbstractTableModel):
         return 0 if parent.isValid() else len(self._rows)
 
     def columnCount(self, parent=QModelIndex()):
-        return 0 if parent.isValid() else len(HEADERS)
+        return 0 if parent.isValid() else len(self._display)
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
         if role == Qt.DisplayRole:
-            return self._ds.rows[self._rows[index.row()]][config.DISPLAY_COLUMNS[index.column()]]
+            return self._ds.rows[self._rows[index.row()]][self._display[index.column()]]
         if role == Qt.TextAlignmentRole:
             return int(Qt.AlignCenter)
         return None
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return HEADERS[section]
+            return self._ds.columns[self._display[section]]
         return None
 
 
@@ -147,20 +148,19 @@ def _merge(spans):
 
 
 class ExcelLoader(QThread):
-    """Legge l'Excel fuori dal thread UI. Tutto come testo (dtype=str), NaN -> vuoto."""
+    """Legge l'Excel fuori dal thread UI: solo le colonne necessarie, tutto come testo."""
 
-    loaded = Signal(object, str)  # Dataset, path
+    loaded = Signal(object, object)  # Dataset, Profile
     failed = Signal(str)
 
-    def __init__(self, path: str, parent=None):
+    def __init__(self, profile, parent=None):
         super().__init__(parent)
-        self.path = path
+        self.profile = profile
 
     def run(self):
         try:
-            xls = pd.ExcelFile(self.path)
-            sheet = config.SHEET_NAME if config.SHEET_NAME in xls.sheet_names else xls.sheet_names[0]
-            df = pd.read_excel(xls, sheet_name=sheet, dtype=str).fillna("")
-            self.loaded.emit(Dataset.from_dataframe(df), self.path)
+            p = self.profile
+            ds = xlsx_reader.load_dataset(p.path, p.sheet, p.header_row, p.needed_columns())
+            self.loaded.emit(ds, p)
         except Exception as e:
             self.failed.emit(str(e))

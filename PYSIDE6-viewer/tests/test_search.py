@@ -53,3 +53,13 @@ def test_code_with_trailing_letter():
     ds = make_dataset()
     assert ds.search("90702010185217I") == [0]
     assert ds.search("185217i") == [0]
+
+
+def test_dynamic_columns():
+    from app.search import Dataset
+    ds = Dataset([("X1", "banco da lavoro", "A1"), ("X2", "vite zincata", "B2")], ["Codice", "Testo", "Posizione"])
+    assert ds.columns == ["Codice", "Testo", "Posizione"]
+    assert ds.col_index("Posizione") == 2
+    assert ds.search("lavoro%banco") == [0]
+    assert ds.search("b2") == [1]            # la ricerca copre tutte le colonne memorizzate
+    assert ds.sort_keys(1) == ["banco da lavoro", "vite zincata"]

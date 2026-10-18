@@ -6,7 +6,7 @@ import sys
 
 APP_NAME = "Orizon Viewer"
 ORG_NAME = "Orizon-AIX"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.1.0"
 COPYRIGHT_YEAR = "2026"
 
 # Solo hash SHA-256: nessuna credenziale in chiaro nel codice.
@@ -14,20 +14,11 @@ USERNAME_HASH = "426a3d9667ccff155ef850dcba1a06d58a9c7d5811019d42d45c25d4d1bd10a
 PASSWORD_HASH = "ee09198e46224875cf39928511ef2b855895c43ee86d1de894ee82bc7c990afa"
 PIN_HASH = "ee09198e46224875cf39928511ef2b855895c43ee86d1de894ee82bc7c990afa"
 
-SHEET_NAME = "Foglio1"
 LOGO_FILE = os.path.join("assets", "Orizon-com.jpg")
 ICON_DIR = os.path.join("assets", "icons")
 FONT_FAMILIES = ["Helvetica Neue", "Helvetica", "Segoe UI", "SF Pro Text", "Arial", "sans-serif"]
 
-# Colonne del file Excel (nome -> posizione di riserva se il nome non esiste)
-ALL_COLUMNS = (
-    "Codice Prodotto", "Ricambista", "Um", "Descrizione Libera",
-    "Note Interne", "LAYOUT", "Note Esterne", "EXTRA NOTA",
-)
-# Indici (in ALL_COLUMNS) delle colonne mostrate nella tabella, come nella vecchia versione
-DISPLAY_COLUMNS = (0, 3, 4, 5)
-COL_CODE, COL_DESC, COL_NOTE, COL_LAYOUT = DISPLAY_COLUMNS
-STRETCH_VIEW_COLUMN = 1  # colonna della vista (Descrizione) che riempie lo schermo
+PREVIEW_ROWS = 200  # righe lette per l'anteprima del wizard e l'analisi dei codici
 
 SEARCH_DEBOUNCE_MS = 150
 

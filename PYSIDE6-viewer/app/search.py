@@ -1,8 +1,6 @@
 """Logica di ricerca pura (senza Qt): testo normalizzato pre-calcolato + filtro per sottostringhe."""
 import unicodedata
 
-from . import config
-
 
 def fold(text: str) -> str:
     """Minuscolo senza accenti. Mantiene la lunghezza (utile per l'evidenziazione)."""
@@ -39,16 +37,21 @@ def filter_indices(haystack: list, parts: list, subset=None) -> list:
 
 
 class Dataset:
-    """Righe dell'Excel (tutte le 8 colonne come testo) + liste di ricerca pre-calcolate."""
+    """Righe (solo le colonne necessarie, come testo) + testo di ricerca pre-calcolato."""
 
-    def __init__(self, rows: list):
-        self.rows = rows  # list[tuple[str, ...]] con len == len(ALL_COLUMNS)
+    def __init__(self, rows: list, columns: list = None):
+        self.rows = rows  # list[tuple[str, ...]]
+        width = len(rows[0]) if rows else (len(columns) if columns else 0)
+        self.columns = list(columns) if columns else [f"Colonna {i + 1}" for i in range(width)]
         # una volta sola: tutto il testo della riga unito, normalizzato
         self.haystack = [normalize(" ".join(r)) for r in rows]
         self._sort_keys = {}
 
     def __len__(self):
         return len(self.rows)
+
+    def col_index(self, name: str) -> int:
+        return self.columns.index(name)
 
     def sort_keys(self, col: int) -> list:
         if col not in self._sort_keys:
@@ -61,23 +64,3 @@ class Dataset:
         if not parts:
             return list(range(len(self.rows)))
         return filter_indices(self.haystack, parts)
-
-    @classmethod
-    def from_dataframe(cls, df) -> "Dataset":
-        n = len(config.ALL_COLUMNS)
-        cols = []
-        for i, name in enumerate(config.ALL_COLUMNS):
-            if name in df.columns:
-                cols.append(df[name])
-            elif i < df.shape[1]:
-                cols.append(df.iloc[:, i])
-            else:
-                cols.append(None)
-        lists = []
-        for c in cols:
-            if c is None:
-                lists.append([""] * len(df))
-            else:
-                lists.append([("" if v is None else str(v)).strip() for v in c.fillna("").tolist()])
-        rows = [tuple(lists[j][i] for j in range(n)) for i in range(len(df))]
-        return cls(rows)

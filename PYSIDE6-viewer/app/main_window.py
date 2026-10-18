@@ -8,13 +8,16 @@ from PySide6.QtWidgets import (
     QProgressBar, QPushButton, QStackedLayout, QTableView, QVBoxLayout, QWidget,
 )
 
-from . import config, theme
-from .detail_dialog import DetailDialog
+from . import config, theme, xlsx_reader
+from .confirm_dialog import ConfirmDialog
+from .detail_dialog import DetailDialog, NoDetailsDialog
+from .file_profiles import ProfileStore, resolve
 from .pin_dialog import PinDialog
 from .settings import Settings
-from .settings_dialog import TAB_GENERAL, TAB_INFO, SettingsDialog
+from .settings_dialog import TAB_FILE, TAB_GENERAL, TAB_INFO, SettingsDialog
 from .table_model import ArticleModel, ExcelLoader, HighlightDelegate
 from .toast import show_toast
+from .wizard.wizard_dialog import WizardDialog
 
 
 class ArticleTable(QTableView):
@@ -45,7 +48,12 @@ class MainWindow(QWidget):
         self._allow_close = False
         self._pin_open = False
         self._loader = None
-        self._saved_widths = self.settings.column_widths()
+        self.store = ProfileStore()
+        self.profile = None          # profilo del file corrente
+        self._profile_saved = True   # False dopo «Elimina configurazioni salvate»
+        self._applying_widths = False
+        self._stretch_col = -1
+        self._applied_note = None
         self.setWindowTitle(config.APP_NAME)
 
         self.model = ArticleModel(self)
@@ -153,18 +161,8 @@ class MainWindow(QWidget):
         hdr.setSectionsClickable(True)
         hdr.setMinimumSectionSize(self._px(60))
         hdr.setStretchLastSection(False)
-        defaults = {0: 230, 2: 260, 3: 130}
-        for c in range(self.model.columnCount()):
-            if c == config.STRETCH_VIEW_COLUMN:
-                hdr.setSectionResizeMode(c, QHeaderView.Stretch)
-            else:
-                hdr.setSectionResizeMode(c, QHeaderView.Interactive)
-                name = self.model.headerData(c, Qt.Horizontal)
-                w = self._saved_widths.get(name, defaults.get(c, 150))
-                hdr.resizeSection(c, self._px(w))
         hdr.sectionResized.connect(self._on_section_resized)
         self.table.setSortingEnabled(True)
-        hdr.setSortIndicator(-1, Qt.AscendingOrder)  # nessun ordinamento iniziale
 
         # card della tabella: pagina 0 = tabella, pagina 1 = stato vuoto
         self.card = QFrame(objectName="TableCard")
@@ -257,7 +255,38 @@ class MainWindow(QWidget):
         self.clock_date.setText(now.toString("dd/MM/yyyy"))
 
     def open_settings(self, tab=TAB_GENERAL):
-        SettingsDialog(self, self.settings, tab if isinstance(tab, int) else TAB_GENERAL).exec()
+        tab = tab if isinstance(tab, int) else TAB_GENERAL
+        dlg = SettingsDialog(self, self.settings, tab, self._file_info(), self._confirm_clear_profiles)
+        dlg.exec()
+        if dlg.requested == "edit":
+            QTimer.singleShot(0, self.edit_configuration)
+
+    def _file_info(self) -> dict:
+        p = self.profile
+        if p is None:
+            return {}
+        return {"path": p.path, "sheet": p.sheet, "columns": len(p.columns),
+                "details": p.details.enabled, "type": p.details.barcode_type}
+
+    def _confirm_clear_profiles(self):
+        if ConfirmDialog.ask(self, "Elimina configurazioni",
+                             "Verranno eliminate tutte le configurazioni salvate dei file. "
+                             "Il file attuale resta visualizzato fino al prossimo avvio.",
+                             "Elimina", danger=True):
+            self.store.clear()
+            self._profile_saved = False
+            show_toast(self, "Configurazioni eliminate", "success", 2200)
+
+    def edit_configuration(self):
+        """Impostazioni → File → Modifica configurazione (richiede il PIN)."""
+        if self.profile is None or self._loader is not None:
+            return
+        if not PinDialog.ask(self, "PIN per modificare"):
+            return
+        if not os.path.isfile(self.profile.path):
+            show_toast(self, f"File non trovato: {os.path.basename(self.profile.path)}")
+            return
+        self.run_wizard(self.profile.path, self.profile)
 
     # ------------------------------------------------------------ kiosk
     def show_kiosk(self):
@@ -310,7 +339,7 @@ class MainWindow(QWidget):
         if not os.path.isfile(path):
             show_toast(self, f"File non trovato: {os.path.basename(path)}", "error", 4000)
             return
-        self.load_file(path)
+        self.open_path(path)
 
     def import_excel(self):
         if self._loader is not None:
@@ -319,15 +348,42 @@ class MainWindow(QWidget):
             return
         start = os.path.dirname(self.settings.last_file()) or os.path.expanduser("~")
         path, _ = QFileDialog.getOpenFileName(
-            self, "Seleziona un file Excel", start, "File Excel (*.xlsx)"
+            self, "Seleziona un file Excel", start, "File Excel (*.xlsx *.xlsm)"
         )
         if path:
-            self.load_file(path)
+            self.open_path(path)
 
-    def load_file(self, path: str):
+    def open_path(self, path: str):
+        """Profilo salvato con la stessa struttura -> carica subito; altrimenti wizard."""
+        try:
+            match = resolve(path, self.store)
+        except xlsx_reader.XlsxError as e:
+            show_toast(self, f"Errore durante l'importazione: {str(e)[:160]}", "error", 5000)
+            return
+        if match.kind == "applied":
+            self.load_profile(match.profile, applied=True)
+        elif match.kind == "changed":
+            self.run_wizard(path, match.profile, "La struttura del file è cambiata")
+        else:
+            self.run_wizard(path, None)
+
+    def run_wizard(self, path: str, prefill=None, notice: str = None):
+        try:
+            sheets = xlsx_reader.list_sheets(path)
+        except xlsx_reader.XlsxError as e:
+            show_toast(self, f"Errore durante l'importazione: {str(e)[:160]}", "error", 5000)
+            return
+        dlg = WizardDialog(self, path, sheets, prefill)
+        if notice:
+            dlg.toast_when_shown(notice)
+        if dlg.exec() == WizardDialog.Accepted and dlg.profile is not None:
+            self.load_profile(dlg.profile)
+
+    def load_profile(self, profile, applied: bool = False):
         if self._loader is not None:
             return
-        self._loader = ExcelLoader(path, self)
+        self._applied_note = f"Configurazione applicata: {profile.name}" if applied else None
+        self._loader = ExcelLoader(profile, self)
         self._set_loading(True)
         self._loader.loaded.connect(self._on_loaded)
         self._loader.failed.connect(self._on_failed)
@@ -341,12 +397,19 @@ class MainWindow(QWidget):
         self.empty_btn.setEnabled(not on)
         self._refresh_state()
 
-    def _on_loaded(self, dataset, path):
-        self.model.set_dataset(dataset)
-        self.settings.set_last_file(path)
+    def _on_loaded(self, dataset, profile):
+        self.profile = profile
+        self._profile_saved = True
+        self.model.set_dataset(dataset, profile.columns)
+        self._setup_columns()
+        self.settings.set_last_file(profile.path)
+        self.store.upsert(profile)
         self.apply_filters()
         self._refresh_state()
-        show_toast(self, f"Caricati {fmt_int(len(dataset))} articoli", "success", 1800)
+        if self._applied_note:
+            show_toast(self, self._applied_note, "success", 2400)
+        else:
+            show_toast(self, f"Caricati {fmt_int(len(dataset))} articoli", "success", 1800)
 
     def _on_failed(self, message):
         show_toast(self, f"Errore durante l'importazione: {message[:160]}", "error", 5000)
@@ -355,6 +418,35 @@ class MainWindow(QWidget):
         self._loader.deleteLater()
         self._loader = None
         self._set_loading(False)
+
+    # ------------------------------------------------------------ colonne dinamiche
+    def _setup_columns(self):
+        """Larghezze: quelle salvate nel profilo; la colonna con il testo piu' lungo riempie lo spazio."""
+        hdr = self.table.horizontalHeader()
+        n = self.model.columnCount()
+        ds = self.model.dataset()
+        sample = [self.model.row_values(r) for r in range(min(300, self.model.rowCount()))]
+        avg = []
+        for c in range(n):
+            idx = ds.col_index(self.model.headerData(c, Qt.Horizontal))
+            vals = [len(r[idx]) for r in sample] or [0]
+            avg.append(sum(vals) / len(vals))
+        self._stretch_col = max(range(n), key=lambda c: avg[c]) if n else -1
+        saved = self.profile.widths if self.profile else {}
+        self._applying_widths = True
+        try:
+            for c in range(n):
+                name = self.model.headerData(c, Qt.Horizontal)
+                if c == self._stretch_col:
+                    hdr.setSectionResizeMode(c, QHeaderView.Stretch)
+                    continue
+                hdr.setSectionResizeMode(c, QHeaderView.Interactive)
+                w = saved.get(name) or max(90, min(320, max((avg[c] + 6) * 9, (len(name) + 3) * 13)))
+                hdr.resizeSection(c, self._px(w))
+            if n:
+                hdr.setSortIndicator(-1, Qt.AscendingOrder)  # nessun ordinamento iniziale
+        finally:
+            self._applying_widths = False
 
     # ------------------------------------------------------------ ricerca
     def _debounce_filters(self):
@@ -392,19 +484,32 @@ class MainWindow(QWidget):
 
     # ------------------------------------------------------------ dettaglio
     def show_detail(self, view_row: int):
-        if view_row < 0 or view_row >= self.model.rowCount():
+        if self.profile is None or view_row < 0 or view_row >= self.model.rowCount():
             return
-        v = self.model.row_values(view_row)
-        DetailDialog(self, v[config.ALL_COLUMNS.index("Codice Prodotto")],
-                     v[config.ALL_COLUMNS.index("Descrizione Libera")],
-                     v[config.ALL_COLUMNS.index("LAYOUT")]).exec()
+        spec = self.profile.details
+        if not spec.enabled:
+            dlg = NoDetailsDialog(self)
+            dlg.exec()
+            if dlg.open_settings:
+                self.open_settings(TAB_FILE)
+            return
+        ds = self.model.dataset()
+        row = ds.rows[self.model.source_row(view_row)]
+
+        def val(name):
+            return row[ds.col_index(name)] if name and name in ds.columns else ""
+
+        DetailDialog(self, spec, val(spec.code_col), val(spec.above_col), val(spec.hl_col)).exec()
 
     # ------------------------------------------------------------ larghezze colonne
     def _on_section_resized(self, idx, old, new):
-        if idx != config.STRETCH_VIEW_COLUMN:
-            name = self.model.headerData(idx, Qt.Horizontal)
-            self._saved_widths[name] = new / self.s
+        if self._applying_widths or self.profile is None or idx == self._stretch_col:
+            return
+        name = self.model.headerData(idx, Qt.Horizontal)
+        if name:
+            self.profile.widths[name] = new / self.s
             self._width_timer.start()
 
     def _save_widths(self):
-        self.settings.set_column_widths(self._saved_widths)
+        if self.profile is not None and self._profile_saved:
+            self.store.upsert(self.profile)

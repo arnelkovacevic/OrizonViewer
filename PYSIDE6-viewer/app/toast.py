@@ -44,7 +44,10 @@ class Toast(QLabel):
         self.show()
         self.raise_()
         self._fade(0.0, 1.0)
-        QTimer.singleShot(duration_ms, lambda: self._fade(1.0, 0.0, self.deleteLater))
+        self._timer = QTimer(self)  # figlio del toast: sparisce con lui, niente callback su oggetti cancellati
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(lambda: self._fade(1.0, 0.0, self.deleteLater))
+        self._timer.start(duration_ms)
 
 
 def show_toast(widget: QWidget, text: str, kind: str = "error", duration_ms: int = 2600):

@@ -1,5 +1,5 @@
 PySide6
-pandas
 openpyxl
 python-barcode
+qrcode
 pillow

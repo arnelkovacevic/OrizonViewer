@@ -63,6 +63,12 @@ THEMES = {
         "toggle_off": "#44586B",
         "tooltip_bg": "#162433",
         "layout_green": "#3DDC84",
+        "hl_verde": "#3DDC84",
+        "hl_blu": "#5AB0FF",
+        "hl_arancione": "#FFA640",
+        "hl_neutro": "#FFFFFF",
+        "warn": "#FFB454",
+        "danger_text": "#FF7B7F",
         "shadow": "#000000",
     },
     "light": {
@@ -99,6 +105,12 @@ THEMES = {
         "toggle_off": "#A9B9C7",
         "tooltip_bg": "#FFFFFF",
         "layout_green": "#12853F",
+        "hl_verde": "#12853F",
+        "hl_blu": "#1769C9",
+        "hl_arancione": "#C75F00",
+        "hl_neutro": "#0B1620",
+        "warn": "#B35A00",
+        "danger_text": "#C1272D",
         "shadow": "#000000",
     },
 }
@@ -131,6 +143,8 @@ def build_stylesheet(name: str, scale: float) -> str:
     with open(config.resource_path(os.path.join("app", "styles.qss")), encoding="utf-8") as f:
         qss = f.read()
     qss = _TOKEN.sub(lambda m: t[m.group(1)], qss)
+    for key, fname in (('CHECKICON', 'check.svg'), ('CHEVRONICON', 'chevron.svg')):
+        qss = qss.replace(key, config.resource_path(os.path.join(config.ICON_DIR, fname)).replace('\\', '/'))
     return _PX.sub(lambda m: str(max(1, round(float(m.group(1)) * scale))), qss)
 
 
