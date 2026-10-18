@@ -1,5 +1,5 @@
 """Passo 2 — Colonne: selezione e ordine (frecce ▲▼, adatte al touch)."""
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QWidget,
 )
@@ -11,6 +11,7 @@ from .common import Stepper
 class ColumnRow(QFrame):
     moveRequested = Signal(object, int)   # (riga, -1 su / +1 giu')
     toggled = Signal()
+    dragMoved = Signal(object, int)       # (riga, y globale del cursore)
 
     def __init__(self, name: str, sample: str, scale: float, parent=None):
         super().__init__(parent)
@@ -20,6 +21,9 @@ class ColumnRow(QFrame):
         m = round(8 * scale)
         lay.setContentsMargins(m, round(4 * scale), m, round(4 * scale))
         lay.setSpacing(round(10 * scale))
+        self.grip = QLabel("⋮⋮", objectName="ColSample")
+        self.grip.setToolTip("Trascina per cambiare l'ordine")
+        lay.addWidget(self.grip)
         self.check = QCheckBox()
         self.check.toggled.connect(lambda _c: self.toggled.emit())
         lay.addWidget(self.check)
@@ -40,6 +44,28 @@ class ColumnRow(QFrame):
             b.clicked.connect(lambda _=False, delta=d: self.moveRequested.emit(self, delta))
             lay.addWidget(b)
         self.setMinimumHeight(size + round(10 * scale))
+
+    # --- trascinamento (alternativo alle frecce)
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            self._press_y = e.globalPosition().toPoint().y()
+            self._dragging = False
+        super().mousePressEvent(e)
+
+    def mouseMoveEvent(self, e):
+        if e.buttons() & Qt.LeftButton and hasattr(self, "_press_y"):
+            y = e.globalPosition().toPoint().y()
+            if self._dragging or abs(y - self._press_y) > 8:
+                if not self._dragging:
+                    self._dragging = True
+                    self.setCursor(Qt.ClosedHandCursor)
+                self.dragMoved.emit(self, y)
+        super().mouseMoveEvent(e)
+
+    def mouseReleaseEvent(self, e):
+        self._dragging = False
+        self.unsetCursor()
+        super().mouseReleaseEvent(e)
 
     def resizeEvent(self, e):  # solo elisione del testo di esempio; non cambia la dimensione
         super().resizeEvent(e)
@@ -105,6 +131,7 @@ class StepColumns(QWidget):
             row = ColumnRow(name, sample, self.s)
             row.check.setChecked(name in selected)
             row.moveRequested.connect(self._move)
+            row.dragMoved.connect(self._drag)
             row.toggled.connect(self._changed)
             self._rows.append(row)
             self.rows_layout.insertWidget(self.rows_layout.count() - 1, row)
@@ -138,6 +165,13 @@ class StepColumns(QWidget):
         self._refresh_arrows()
         self.selectionChanged.emit()
         self.scroll.ensureWidgetVisible(row)
+
+    def _drag(self, row, global_y: int):
+        y = self.holder.mapFromGlobal(QPoint(0, global_y)).y()
+        i = self._rows.index(row)
+        target = sum(1 for r in self._rows if r is not row and r.geometry().center().y() < y)
+        if target != i:
+            self._move(row, target - i)
 
     def _refresh_arrows(self):
         last = len(self._rows) - 1

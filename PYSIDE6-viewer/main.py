@@ -23,19 +23,20 @@ def main() -> int:
     scale = config.compute_scale(app.primaryScreen())
     app.setProperty("ui_scale", scale)
     font = app.font()
-    font.setFamilies(config.FONT_FAMILIES)
+    font.setFamilies(config.ui_fonts())
     font.setPixelSize(round(16 * scale))
     app.setFont(font)
     theme.apply_theme(app, Settings().theme())
     app.setWindowIcon(QIcon(config.resource_path(config.LOGO_FILE)))
 
     login = LoginDialog()
-    login.showFullScreen()
+    login.show_fullscreen()
     if login.exec() != QDialog.Accepted:
         return 0
 
     window = MainWindow(scale)
-    window.show_kiosk()
+    window.enter_fullscreen()  # unico punto in cui si entra in fullscreen
+    window.start_session()     # solo dopo: ultimo file / wizard
     return app.exec()
 
 

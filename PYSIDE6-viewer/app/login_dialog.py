@@ -69,6 +69,13 @@ class LoginDialog(QDialog):
         quit_btn.clicked.connect(self._quit)
         lay.addWidget(quit_btn)
 
+    def show_fullscreen(self):
+        """Fullscreen con dimensione esplicita (vedi MainWindow.enter_fullscreen)."""
+        self.setGeometry(self.screen().geometry())
+        self.showFullScreen()
+        self.raise_()
+        self.activateWindow()
+
     def _attempt(self):
         ok_user = config.verify(self.user.text().strip(), config.USERNAME_HASH)
         ok_pwd = config.verify(self.pwd.text(), config.PASSWORD_HASH)

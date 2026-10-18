@@ -4,7 +4,7 @@ QWidget {
     background-color: $bg;
     color: $text;
     font-size: {16}px;
-    font-family: "Helvetica Neue", "Helvetica", "Segoe UI", "SF Pro Text", Arial, sans-serif;
+    font-family: UIFONTS;
 }
 QDialog#LoginDialog { background-color: $bg; }
 QDialog#Modal { background: transparent; }
@@ -20,7 +20,7 @@ QLabel#Muted { color: $muted; font-size: {18}px; }
 QLabel#Counter { color: $muted2; font-size: {18}px; }
 QLabel#DetailDesc { font-weight: 700; color: $text_strong; }
 QLabel#DetailLayout { font-weight: 800; color: $layout_green; }
-QLabel#DetailCode { font-family: "Menlo", "Consolas", "Courier New", monospace; color: $muted2; }
+QLabel#DetailCode { font-family: MONOFONTS; color: $muted2; }
 QLabel#DetailFull { color: $muted; }
 QScrollArea#DetailFullScroll { background: transparent; border: none; }
 QScrollArea#DetailFullScroll > QWidget > QWidget { background: transparent; }

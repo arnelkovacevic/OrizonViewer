@@ -16,11 +16,29 @@ PIN_HASH = "ee09198e46224875cf39928511ef2b855895c43ee86d1de894ee82bc7c990afa"
 
 LOGO_FILE = os.path.join("assets", "Orizon-com.jpg")
 ICON_DIR = os.path.join("assets", "icons")
-FONT_FAMILIES = ["Helvetica Neue", "Helvetica", "Segoe UI", "SF Pro Text", "Arial", "sans-serif"]
+_UI_FONTS = ["Helvetica Neue", "Helvetica", "Segoe UI", "SF Pro Text", "Arial", "DejaVu Sans"]
+_MONO_FONTS = ["Menlo", "Consolas", "Courier New", "DejaVu Sans Mono"]
+
+
+def _installed(candidates, fallback):
+    """Solo famiglie realmente installate: una famiglia mancante rallenta l'avvio e stampa un avviso Qt."""
+    from PySide6.QtGui import QFontDatabase
+    found = [f for f in candidates if QFontDatabase.hasFamily(f)]
+    return found or [fallback]
+
+
+def ui_fonts() -> list:
+    return _installed(_UI_FONTS, "Arial")
+
+
+def mono_fonts() -> list:
+    return _installed(_MONO_FONTS, "Courier New")
 
 PREVIEW_ROWS = 200  # righe lette per l'anteprima del wizard e l'analisi dei codici
 
 SEARCH_DEBOUNCE_MS = 150
+FULLSCREEN_SETTLE_MS = 150       # attesa prima di ultimo file / wizard
+FULLSCREEN_SETTLE_MS_MAC = 300
 
 
 def sha256_hex(text: str) -> str:

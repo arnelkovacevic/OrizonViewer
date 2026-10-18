@@ -143,6 +143,8 @@ def build_stylesheet(name: str, scale: float) -> str:
     with open(config.resource_path(os.path.join("app", "styles.qss")), encoding="utf-8") as f:
         qss = f.read()
     qss = _TOKEN.sub(lambda m: t[m.group(1)], qss)
+    quote = lambda fams: ", ".join(f'"{f}"' for f in fams)
+    qss = qss.replace('UIFONTS', quote(config.ui_fonts())).replace('MONOFONTS', quote(config.mono_fonts()))
     for key, fname in (('CHECKICON', 'check.svg'), ('CHEVRONICON', 'chevron.svg')):
         qss = qss.replace(key, config.resource_path(os.path.join(config.ICON_DIR, fname)).replace('\\', '/'))
     return _PX.sub(lambda m: str(max(1, round(float(m.group(1)) * scale))), qss)

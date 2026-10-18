@@ -1,5 +1,6 @@
 """Finestra principale in modalità kiosk."""
 import os
+import sys
 
 from PySide6.QtCore import QDateTime, QEvent, QSize, QTimer, Qt, Signal
 from PySide6.QtGui import QIcon, QPixmap
@@ -289,11 +290,24 @@ class MainWindow(QWidget):
         self.run_wizard(self.profile.path, self.profile)
 
     # ------------------------------------------------------------ kiosk
-    def show_kiosk(self):
+    def enter_fullscreen(self):
+        """Unico punto in cui si entra in fullscreen (chiamato da main.py dopo il login).
+        La finestra riceve PRIMA la dimensione dello schermo: senza, su macOS Qt usa lo sizeHint
+        come geometria «normale» e dopo ~0.1 s la finestra torna a 1120x549 pur restando «fullscreen»."""
+        self.setGeometry(self.screen().geometry())
         self.showFullScreen()
         self.raise_()
         self.activateWindow()
-        QTimer.singleShot(0, self.autoload)
+
+    def start_session(self):
+        """Dopo enter_fullscreen(): ultimo file / wizard partono con un breve ritardo (QTimer)."""
+        delay = config.FULLSCREEN_SETTLE_MS_MAC if sys.platform == "darwin" else config.FULLSCREEN_SETTLE_MS
+        QTimer.singleShot(delay, self._begin_autoload)
+
+    def _begin_autoload(self):
+        if not self.isFullScreen():
+            self.showFullScreen()
+        self.autoload()
 
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_Escape:
